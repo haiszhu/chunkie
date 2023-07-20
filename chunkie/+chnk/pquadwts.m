@@ -34,6 +34,8 @@ function mat = pquadwts(r,d,n,d2,h,ct,bw,j,...
 %
 
 if_helm2d = contains(func2str(kern),'helm2d'); % if helm2d, then kernel split quadr
+if_dlp = contains(func2str(kern),'''D''') || contains(func2str(kern),'''d'''); % Hai: if dlp, is there a standard way to do strcmpi(type,'d') here?
+if_slp = contains(func2str(kern),'''S''') || contains(func2str(kern),'''s'''); 
 
 % Helsing-Ojala (interior/exterior?)
 h_i = h(j);
@@ -53,12 +55,23 @@ if if_helm2d % helm2d (kernel split by J. Helsing & A. Holst: Variants of an exp
   mat_ho_slp = (-2*pi*mat_ho_slp); mat_ho_dlp = real(-2*pi*mat_ho_dlp); % Laplace slp & dlp kernel special quadr matrix 
   %mat_naive_dlp = 1i/4*(zk*abs(r_i(:).'-(rt(1,:)' + 1i*rt(2,:)'))).*besselh(1,zk*abs(r_i(:).'-(rt(1,:)' + 1i*rt(2,:)'))).*imag(wxp_i(:).'./((rt(1,:)' + 1i*rt(2,:)')-r_i(:).')); % naive helm2d dlp matrix
   targinfo = struct('r',rt); srcinfo = struct('r',[real(r_i(:))';imag(r_i(:))'],'n',[real(n_i(:))';imag(n_i(:))']);
-  mat_naive_dlp = kern(srcinfo,targinfo).*abs(wxp_i)'; % naive helm2d dlp matrix
-  mat = ( mat_naive_dlp + 2/pi*log(abs(r_i(:).'-(rt(1,:)' + 1i*rt(2,:)'))).*imag(mat_naive_dlp) + 1/(2*pi)*real(n_i(:).'./(r_i(:).'-(rt(1,:)' + 1i*rt(2,:)'))).*abs(wxp_i)' ) ...
-           - 2/pi*(mat_ho_slp./abs(wxp_i)').*imag(mat_naive_dlp) - 1/(2*pi)*real(mat_ho_dlp); % Hai: kernel split formula eq(26) in J. Helsing & A. Holst, typo in Cauchy integral coefficient? should be 1/(2*pi). I think... 
+  mat_naive = kern(srcinfo,targinfo).*abs(wxp_i)'; % naive helm2d matrix (slp or dlp or slp+dlp via kern call)
+  if if_slp % slp
+    mat = ( mat_naive + 2/pi*log(abs(r_i(:).'-(rt(1,:)' + 1i*rt(2,:)'))).*imag(mat_naive) ) ...
+             - 2/pi*(mat_ho_slp./abs(wxp_i)').*imag(mat_naive); % Hai: kernel split formula eq(20) in J. Helsing & A. Holst
+  else % dlp or slp+dlp
+    mat = ( mat_naive + 2/pi*log(abs(r_i(:).'-(rt(1,:)' + 1i*rt(2,:)'))).*imag(mat_naive) + 1/(2*pi)*real(n_i(:).'./(r_i(:).'-(rt(1,:)' + 1i*rt(2,:)'))).*abs(wxp_i)' ) ...
+             - 2/pi*(mat_ho_slp./abs(wxp_i)').*imag(mat_naive) - 1/(2*pi)*real(mat_ho_dlp); % Hai: kernel split formula eq(26) in J. Helsing & A. Holst, typo in Cauchy integral coefficient? should be 1/(2*pi). I think...
+  end
   mat = mat*intp;
 else % lap2d
-  mat = (mat_ho_slp+real(mat_ho_dlp))*intp;  % depends on kern, different mat1?
+  if if_dlp
+    mat = real(mat_ho_dlp)*intp;  % dlp
+  elseif if_slp
+    mat = mat_ho_slp*intp; % slp
+  else
+    mat = (mat_ho_slp+real(mat_ho_dlp))*intp;  % combined layer potential
+  end
 end
 
 end

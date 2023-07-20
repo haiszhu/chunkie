@@ -92,6 +92,16 @@ t1 = toc(start);
 fprintf('%5.2e s : time to assemble matrix (kernel split)\n',t1)
 sysks = -eye(chnkr.k*chnkr.nch) + matks; % now for interior: -0.5 (on-surface), then -0.5 (interior)
 
+%  single layer kernel self eval system matrix
+kerns; % slp kernel
+matkss = chunkerkernevalmat(chnkr,kerns,targs_bd,opts); % built for exterior
+syskss = matkss; % slp is the same
+
+%  combined layer kernel self eval system matrix
+fkernc = @(s,t) chnk.helm2d.kern(zk,s,t,'C',[1 1]); % combined layer kernel
+matksc = chunkerkernevalmat(chnkr,fkernc,targs_bd,opts); % built for exterior
+sysksc = -eye(chnkr.k*chnkr.nch) + matksc; % now for interior
+
 
 rhs = ubdry; rhs = rhs(:);
 start = tic; sol = gmres(sys,rhs,[],1e-14,100); t1 = toc(start);
@@ -107,6 +117,8 @@ err = norm(sol-sol2,'fro')/norm(sol2,'fro');
 fprintf('difference between direct and iterative %5.2e\n',err)
 
 start = tic; solks = sysks\rhs; t1 = toc(start);
+start = tic; solkss = syskss\rhs; t1 = toc(start);
+start = tic; solksc = sysksc\rhs; t1 = toc(start);
 
 % evaluate at targets and compare
 
@@ -133,7 +145,7 @@ assert(relerr < 1e-10);
 opts.forcepquad = true;
 start=tic; Dsol = chunkerkerneval(chnkr,fkern,solks,targets,opts); 
 t1 = toc(start);
-fprintf('%5.2e s : time to eval at targs (kernel split)\n',t1)
+fprintf('%5.2e s : time to eval at targs (kernel split D)\n',t1)
 
 %
 
@@ -141,5 +153,23 @@ wchnkr = weights(chnkr);
 
 relerr = norm(utarg-Dsol,'fro')/(sqrt(chnkr.nch)*norm(utarg,'fro'));
 relerr2 = norm(utarg-Dsol,'inf')/dot(abs(sol(:)),wchnkr(:));
+fprintf('relative frobenius error %5.2e\n',relerr);
+fprintf('relative l_inf/l_1 error %5.2e\n',relerr2);
+
+start=tic; Ssol = chunkerkerneval(chnkr,kerns,solkss,targets,opts); 
+t1 = toc(start);
+fprintf('%5.2e s : time to eval at targs (kernel split S)\n',t1)
+
+relerr = norm(utarg-Ssol,'fro')/(sqrt(chnkr.nch)*norm(utarg,'fro'));
+relerr2 = norm(utarg-Ssol,'inf')/dot(abs(sol(:)),wchnkr(:));
+fprintf('relative frobenius error %5.2e\n',relerr);
+fprintf('relative l_inf/l_1 error %5.2e\n',relerr2);
+
+start=tic; Csol = chunkerkerneval(chnkr,fkernc,solksc,targets,opts); 
+t1 = toc(start);
+fprintf('%5.2e s : time to eval at targs (kernel split combined layer kernel)\n',t1)
+
+relerr = norm(utarg-Csol,'fro')/(sqrt(chnkr.nch)*norm(utarg,'fro'));
+relerr2 = norm(utarg-Csol,'inf')/dot(abs(sol(:)),wchnkr(:));
 fprintf('relative frobenius error %5.2e\n',relerr);
 fprintf('relative l_inf/l_1 error %5.2e\n',relerr2);
