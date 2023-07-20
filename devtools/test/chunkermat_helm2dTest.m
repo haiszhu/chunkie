@@ -13,7 +13,7 @@ cparams = [];
 cparams.eps = 1.0e-10;
 cparams.nover = 1;
 pref = []; 
-pref.k = 32;
+pref.k = 16;
 narms = 3;
 amp = 0.25;
 start = tic; chnkr = chunkerfunc(@(t) starfish(t,narms,amp),cparams,pref); 
@@ -85,6 +85,14 @@ fprintf('%5.2e s : time to assemble matrix\n',t1)
 
 sys = -0.5*eye(chnkr.k*chnkr.nch) + D;
 
+start = tic; 
+opts.forcepquad = true; targs_bd = [chnkr.r(1,:);chnkr.r(2,:)];
+matks = chunkerkernevalmat(chnkr,fkern,targs_bd,opts); % built for exterior
+t1 = toc(start);
+fprintf('%5.2e s : time to assemble matrix (kernel split)\n',t1)
+sysks = -eye(chnkr.k*chnkr.nch) + matks; % now for interior: -0.5 (on-surface), then -0.5 (interior)
+
+
 rhs = ubdry; rhs = rhs(:);
 start = tic; sol = gmres(sys,rhs,[],1e-14,100); t1 = toc(start);
 
@@ -98,14 +106,18 @@ err = norm(sol-sol2,'fro')/norm(sol2,'fro');
 
 fprintf('difference between direct and iterative %5.2e\n',err)
 
+start = tic; solks = sysks\rhs; t1 = toc(start);
+
 % evaluate at targets and compare
 
 opts.usesmooth=false;
 opts.verb=false;
 opts.quadkgparams = {'RelTol',1e-16,'AbsTol',1.0e-16};
+opts.forcepquad = false;
 start=tic; Dsol = chunkerkerneval(chnkr,fkern,sol2,targets,opts); 
 t1 = toc(start);
 fprintf('%5.2e s : time to eval at targs (slow, adaptive routine)\n',t1)
+start=tic; Dsol = chunkerkerneval(chnkr,fkern,sol2,targets,opts); 
 
 %
 
@@ -117,3 +129,17 @@ fprintf('relative frobenius error %5.2e\n',relerr);
 fprintf('relative l_inf/l_1 error %5.2e\n',relerr2);
 
 assert(relerr < 1e-10);
+
+opts.forcepquad = true;
+start=tic; Dsol = chunkerkerneval(chnkr,fkern,solks,targets,opts); 
+t1 = toc(start);
+fprintf('%5.2e s : time to eval at targs (kernel split)\n',t1)
+
+%
+
+wchnkr = weights(chnkr);
+
+relerr = norm(utarg-Dsol,'fro')/(sqrt(chnkr.nch)*norm(utarg,'fro'));
+relerr2 = norm(utarg-Dsol,'inf')/dot(abs(sol(:)),wchnkr(:));
+fprintf('relative frobenius error %5.2e\n',relerr);
+fprintf('relative l_inf/l_1 error %5.2e\n',relerr2);
