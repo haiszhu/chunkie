@@ -218,84 +218,84 @@ itargstart(2:end) = rowdims(ids(:));
 itargstart = 1+cumsum(itargstart);
 
 for iii = 1:mk
-% loop over relevant regions 
-itarg = (ids == iii);
-if nnz(itarg) == 0
-    continue
-end
+  % loop over relevant regions 
+  itarg = (ids == iii);
+  if nnz(itarg) == 0
+      continue
+  end
+  
+  targinfo0 = [];
+  targinfo0.r = targinfo.r(:,itarg);
+  if isfield(targinfo,"d"); targinfo0.d = targinfo.d(:,itarg); end
+  if isfield(targinfo,"d2"); targinfo0.d2 = targinfo.d2(:,itarg); end
+  if isfield(targinfo,"n"); targinfo0.n = targinfo.n(:,itarg); end
+  
+  irow0 = kron(itargstart(itarg),ones(rowdims(iii),1)) + repmat( (0:(rowdims(iii)-1)).',nnz(itarg),1);
 
-targinfo0 = [];
-targinfo0.r = targinfo.r(:,itarg);
-if isfield(targinfo,"d"); targinfo0.d = targinfo.d(:,itarg); end
-if isfield(targinfo,"d2"); targinfo0.d2 = targinfo.d2(:,itarg); end
-if isfield(targinfo,"n"); targinfo0.n = targinfo.n(:,itarg); end
-
-irow0 = kron(itargstart(itarg),ones(rowdims(iii),1)) + repmat( (0:(rowdims(iii)-1)).',nnz(itarg),1);
-
-for jjj = 1:nk
-% loop over relevant boundary components
-
-kern0 = kern(iii,jjj);
-if kern0.isnan
-    fints(irow0) = nan;
-    continue
-end
-if kern0.iszero
-    continue
-end
-
-chnkr0 = chnkr(jjj);
-opdims0 = opdims_mat(:,iii,jjj);
-dens0 = dens(icollocs(jjj):(icollocs(jjj+1)-1));
-
-if opts_use.forcesmooth
-    fints(irow0) = fints(irow0) + chnk.chunkerkerneval_smooth(chnkr0,kern0,opdims0,dens0,targinfo0, ...
-        [],opts_use);
-    continue
-end
-
-if opts_use.forceadap
-    fints(irow0) = fints(irow0) + chunkerkerneval_adap(chnkr0,kern0,opdims0,dens0, ...
-        targinfo0,[],opts_use);
-    continue
-end
-
-
-if opts_use.forcepquad
-    optsflag = []; optsflag.fac = opts_use.fac;
-    flag = flagnear(chnkr0,targinfo.r,optsflag);
-    fints(irow0) = fints(irow0) + chnk.chunkerkerneval_smooth(chnkr0,kern0,opdims0,dens0,targinfo0, ...
-        flag,opts_use);
-
-    if ~isfield(opts_use,'side')
-        msg = "Error: for pquad, set opts.side to 'i' or 'e' ";
-        error(msg)  
+  for jjj = 1:nk
+    % loop over relevant boundary components
+    
+    kern0 = kern(iii,jjj);
+    if kern0.isnan
+        fints(irow0) = nan;
+        continue
     end
-
-    fints(irow0) = fints(irow0) + chunkerkerneval_pquad(chnkr0,kern0,opdims0,dens0, ...
-        targinfo0,flag,opts_use);
-
-    return
-end
-
-% smooth for sufficiently far, adaptive otherwise
-
-rho = 1.8;
-optsflag = [];  optsflag.rho = rho;
-flag = flagnear_rectangle(chnkr0,targinfo0.r,optsflag);
-
-npoly = chnkr0.k*2;
-nlegnew = chnk.ellipse_oversample(rho,npoly,opts_use.eps);
-nlegnew = max(nlegnew,chnkr0.k);
-
-[chnkr02,dens02] = upsample(chnkr0,nlegnew,dens0);
-fints(irow0) = fints(irow0) + chnk.chunkerkerneval_smooth(chnkr02,kern0,opdims0,dens02,targinfo0, ...
-    flag,opts_use);
-
-fints(irow0) = fints(irow0) + chunkerkerneval_adap(chnkr0,kern0,opdims0,dens0, ...
-        targinfo0,flag,opts_use);
-
-end
+    if kern0.iszero
+        continue
+    end
+    
+    chnkr0 = chnkr(jjj);
+    opdims0 = opdims_mat(:,iii,jjj);
+    dens0 = dens(icollocs(jjj):(icollocs(jjj+1)-1));
+    
+    if opts_use.forcesmooth
+        fints(irow0) = fints(irow0) + chnk.chunkerkerneval_smooth(chnkr0,kern0,opdims0,dens0,targinfo0, ...
+            [],opts_use);
+        continue
+    end
+    
+    if opts_use.forceadap
+        fints(irow0) = fints(irow0) + chunkerkerneval_adap(chnkr0,kern0,opdims0,dens0, ...
+            targinfo0,[],opts_use);
+        continue
+    end
+    
+    
+    if opts_use.forcepquad
+        optsflag = []; optsflag.fac = opts_use.fac;
+        flag = flagnear(chnkr0,targinfo.r,optsflag);
+        fints(irow0) = fints(irow0) + chnk.chunkerkerneval_smooth(chnkr0,kern0,opdims0,dens0,targinfo0, ...
+            flag,opts_use);
+    
+        if ~isfield(opts_use,'side')
+            msg = "Error: for pquad, set opts.side to 'i' or 'e' ";
+            error(msg)  
+        end
+    
+        fints(irow0) = fints(irow0) + chunkerkerneval_pquad(chnkr0,kern0,opdims0,dens0, ...
+            targinfo0,flag,opts_use);
+    
+        return
+    end
+    
+    % smooth for sufficiently far, adaptive otherwise
+    
+    rho = 1.8;
+    optsflag = [];  optsflag.rho = rho;
+    flag = flagnear_rectangle(chnkr0,targinfo0.r,optsflag);
+    
+    npoly = chnkr0.k*2;
+    nlegnew = chnk.ellipse_oversample(rho,npoly,opts_use.eps);
+    nlegnew = max(nlegnew,chnkr0.k);
+    
+    [chnkr02,dens02] = upsample(chnkr0,nlegnew,dens0);
+    fints(irow0) = fints(irow0) + chnk.chunkerkerneval_smooth(chnkr02,kern0,opdims0,dens02,targinfo0, ...
+        flag,opts_use);
+    
+    fints(irow0) = fints(irow0) + chunkerkerneval_adap(chnkr0,kern0,opdims0,dens0, ...
+            targinfo0,flag,opts_use);
+    
+  end
 end
 
 if ~isempty(cormat)
