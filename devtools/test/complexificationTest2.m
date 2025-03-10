@@ -2,12 +2,9 @@
 
 clear
 close('all')
-addpath('../../')
-opts = [];
-opts.testfmm = false;
-opts.fmmremex = false;
-opts.fmmrecompile = false;
-startup(opts)
+cd '../../'
+startup()
+cd './devtools/test'
 
 zk = 2*pi;
 
@@ -88,6 +85,7 @@ u_ex = Sk.eval(src, struct('r',targets));
 % force smooth quadr
 opts = [];
 opts.forcefmm = false;
+opts.accel = false;
 opts.forcesmooth = true;
 % opts.forceadap = true;
 u_tot = chunkerkerneval(chnkrtot,Dk,tau,targets,opts);
@@ -109,6 +107,8 @@ title('smooth quadr')
 
 % force pquad
 opts2 = [];
+opts2.forcefmm = false;
+opts2.accel = false;
 opts2.forcepquad = true;
 opts2.side = 'i'; % left side of panel...
 u_tot2 = chunkerkerneval(chnkrtot,Dk,tau,targets,opts2);
