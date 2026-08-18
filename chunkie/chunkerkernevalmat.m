@@ -588,10 +588,14 @@ end
 function mat = chunkerkernevalmat_pquad(chnkr,kern,opdims, ...
     targinfo,flag,opts)
 
-if isa(kern,'kernel')
-    kerneval = kern.eval;
-else
-    kerneval = kern;
+if ~isa(kern,'kernel') || isempty(kern.splitinfo)
+    error('Helsing-Ojala quad only available for kernel class objects with splitinfo defined');
+end
+
+scalar = 1;
+q = functions(kern.eval);
+if ~isempty(q.workspace) && isfield(q.workspace{1},'g')
+    scalar = q.workspace{1}.g;
 end
 
 k = chnkr.k;
@@ -654,6 +658,17 @@ else
 
         targinfoji = [];
         targinfoji.r = targinfo.r(:,ji);
+        if isfield(targinfo, 'd')
+            targinfoji.d = targinfo.d(:,ji);
+        end
+
+        if isfield(targinfo, 'd2')
+            targinfoji.d2 = targinfo.d2(:,ji);
+        end
+
+        if isfield(targinfo, 'n')
+            targinfoji.n = targinfo.n(:,ji);
+        end        
 
         srcinfo = [];
         srcinfo.r = r(:,:,i);
@@ -719,7 +734,7 @@ else
             mat0xsplitfun = mat0opdim.*funsf{l};
             mat1f = mat1f + mat0xsplitfun;
         end
-        mat1 = mat1f*kron(intp,eye(opdims(:).'));
+        mat1 = mat1f*kron(intp,eye(opdims(2)));
 
         else
             mat1 = [];
@@ -758,14 +773,14 @@ else
                 mat0xsplitfun = mat0opdim.*funsf{l};
                 mat2f = mat2f + mat0xsplitfun;
             end
-            mat2 = mat2f*kron(intp,eye(opdims(:).'));
+            mat2 = mat2f*kron(intp,eye(opdims(2)));
         else
             mat2 = [];
         end
 
-        mat3 = zeros(size(targinfoji.r,2),k);
-        mat3(iiin,:) = mat1;
-        mat3(iout,:) = mat2;
+        mat3 = zeros(opdims(1)*size(targinfoji.r,2),opdims(2)*k);
+        mat3(repelem(iiin,opdims(1)),:) = mat1;
+        mat3(repelem(iout,opdims(1)),:) = mat2;
 
 
         js1 = jmat:jmatend;
@@ -791,5 +806,5 @@ end
 if dclosest < 1e-10
     warning('Unable to estimate pquad side. Provide opts.side to ensure accuracy.')
 end
-
+mat = scalar*mat;
 end

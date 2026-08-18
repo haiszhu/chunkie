@@ -309,7 +309,7 @@ if opts_use.forcepquad
     fints(irow0) = fints(irow0) + chunkerkerneval_pquad(chnkr0,kern0,opdims0,dens0, ...
         targinfo0,flag,opts_use);
 
-    return
+    continue
 end
 
 % smooth for sufficiently far, adaptive otherwise
@@ -345,6 +345,12 @@ function fints = chunkerkerneval_pquad(chnkr,kern,opdims,dens, ...
 
 if ~isa(kern,'kernel') || isempty(kern.splitinfo)
     error('Helsing-Ojala quad only available for kernel class objects with splitinfo defined');
+end
+
+scalar = 1;
+q = functions(kern.eval);
+if ~isempty(q.workspace) && isfield(q.workspace{1},'g')
+    scalar = q.workspace{1}.g;
 end
 
 % target
@@ -402,7 +408,7 @@ for j=1:size(chnkr.r,3)
         allmatsf = cell(size(kern.splitinfo.type));
         [allmatsf,srcinfof] = chnk.pquadwts(r,d,n,d2,wts,j,targs(:,ji),t,w, ...
             opts,intp_ab,intp,kern.splitinfo.type,true);
-        
+
         funsf = kern.splitinfo.functions(srcinfof,targinfoji);
         for l = 1:length(allmatsf)
             switch kern.splitinfo.action{l}
@@ -420,6 +426,9 @@ for j=1:size(chnkr.r,3)
         end
     end
 end
+
+fints = scalar*fints;
+
 end
 
 
